@@ -7,13 +7,16 @@
 
     class Program
     {
+        static IServiceBus InboundServiceBus;
+        static IServiceBus OutboundServiceBus;
+
         static void Main(string[] args)
         {
-            Bus.Initialize(b =>
+            InboundServiceBus = ServiceBusFactory.New(b =>
             {
                 b.UseRabbitMq(r =>
                 {
-                    r.ConfigureHost(new Uri("rabbitmq://localhost:15672/main"),
+                    r.ConfigureHost(new Uri("rabbitmq://localhost/main/raw"),
                         u =>
                         {
                             u.SetUsername("guest");
@@ -27,7 +30,20 @@
                 });
             });
 
-            Bus.Instance.Publish(new InboundMessage() { PageView = "/page", IpAddress = "10.0.7.7" });
+            OutboundServiceBus = ServiceBusFactory.New(b =>
+            {
+                b.UseRabbitMq(r =>
+                {
+                    r.ConfigureHost(new Uri(ConfigurationManager.AppSettings["ProcessedQueue"]),
+                        u =>
+                        {
+                            u.SetUsername("guest");
+                            u.SetPassword("guest");
+                        });
+                });
+            });
+
+            InboundServiceBus.Publish(new InboundMessage() { PageView = "/page", IpAddress = "10.0.7.7" });
         }
 
         static void ProcessInboundMessage(InboundMessage message)
